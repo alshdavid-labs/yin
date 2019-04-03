@@ -6,7 +6,7 @@
 ### Convenience utilities for idomatic Go HTTP servers
 
 ```
-go get -u github.com/alshdavid-sandbox/go-yin
+go get -u github.com/qkgo/yin
 ```
 
 This library is compatible with the standard HTTP server in Go, 
