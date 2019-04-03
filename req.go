@@ -8,47 +8,41 @@ import (
 )
 
 type Request struct {
-	BindBody    func(body interface{}) error
-	GetHeader   func(key string) string
-	GetQuery    func(key string) string
-	GetCookie   func(name string) string
-	GetLocation func() *Location
+	r *http.Request
 }
 
 func Req(r *http.Request) *Request {
-	req := &Request{}
+	return &Request{r}
+}
 
-	req.BindBody = func(body interface{}) error {
-		if r.Body == nil {
-			return errors.New("No Request body found")
-		}
-		err := json.NewDecoder(r.Body).Decode(body)
-		if err != nil {
-			return err
-		}
-		return nil
+func (req *Request) BindBody(body interface{}) error {
+	if req.r.Body == nil {
+		return errors.New("No Request body found")
 	}
-
-	req.GetCookie = func(name string) string {
-		cookie, err := r.Cookie(name)
-		if err != nil {
-			return ""
-		}
-		val, _ := url.QueryUnescape(cookie.Value)
-		return val
+	err := json.NewDecoder(req.r.Body).Decode(body)
+	if err != nil {
+		return err
 	}
+	return nil
+}
 
-	req.GetHeader = func(key string) string {
-		return r.Header.Get(key)
+func (req *Request) GetCookie(name string) string {
+	cookie, err := req.r.Cookie(name)
+	if err != nil {
+		return ""
 	}
+	val, _ := url.QueryUnescape(cookie.Value)
+	return val
+}
 
-	req.GetQuery = func(key string) string {
-		return r.URL.Query().Get(key)
-	}
+func (req *Request) GetHeader(key string) string {
+	return req.r.Header.Get(key)
+}
 
-	req.GetLocation = func() *Location {
-		return getLocation(r)
-	}
+func (req *Request) GetQuery(key string) string {
+	return req.r.URL.Query().Get(key)
+}
 
-	return req
+func (req *Request) GetLocation() *Location {
+	return getLocation(req.r)
 }

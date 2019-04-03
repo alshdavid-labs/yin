@@ -6,55 +6,47 @@ import (
 )
 
 type Response struct {
-	SetStatus    func(statusCode int) *Response
-	SetCookie    func(cookie *http.Cookie) *Response
-	SetHeader    func(key string, value string) *Response
-	SendJSON     func(interface{})
-	SendString   func(s string)
-	SendStatus   func(statusCode int)
-	SendFile     func(filepath string)
-	SendRedirect func(statusCode int, url string)
+	w http.ResponseWriter
+	r *http.Request
 }
 
 func Res(w http.ResponseWriter, r *http.Request) *Response {
-	res := &Response{}
+	return &Response{w, r}
+}
 
-	res.SetStatus = func(statusCode int) *Response {
-		w.WriteHeader(statusCode)
-		return res
-	}
-
-	res.SetCookie = func(cookie *http.Cookie) *Response {
-		http.SetCookie(w, cookie)
-		return res
-	}
-
-	res.SetHeader = func(key string, value string) *Response {
-		w.Header().Set(key, value)
-		return res
-	}
-
-	res.SendJSON = func(u interface{}) {
-		w.Header().Set(Headers.ContentType, "application/json")
-		json.NewEncoder(w).Encode(u)
-	}
-
-	res.SendString = func(s string) {
-		w.Write([]byte(s))
-	}
-
-	res.SendStatus = func(statusCode int) {
-		w.WriteHeader(statusCode)
-		w.Write([]byte(""))
-	}
-
-	res.SendFile = func(filepath string) {
-		http.ServeFile(w, r, filepath)
-	}
-
-	res.SendRedirect = func(statusCode int, url string) {
-		http.Redirect(w, r, url, statusCode)
-	}
-
+func (res *Response) SetStatus(statusCode int) *Response {
+	res.w.WriteHeader(statusCode)
 	return res
+}
+
+func (res *Response) SetCookie(cookie *http.Cookie) *Response {
+	http.SetCookie(res.w, cookie)
+	return res
+}
+
+func (res *Response) SetHeader(key string, value string) *Response {
+	res.w.Header().Set(key, value)
+	return res
+}
+
+func (res *Response) SendJSON(u interface{}) {
+	res.w.Header().Set(Headers.ContentType, "application/json")
+	json.NewEncoder(res.w).Encode(u)
+}
+
+func (res *Response) SendString(s string) {
+	res.w.Write([]byte(s))
+}
+
+func (res *Response) SendStatus(statusCode int) {
+	res.w.WriteHeader(statusCode)
+	res.w.Write([]byte(""))
+}
+
+func (res *Response) SendFile(filepath string) {
+	http.ServeFile(res.w, res.r, filepath)
+}
+
+func (res *Response) SendRedirect(statusCode int, url string) {
+	http.Redirect(res.w, res.r, url, statusCode)
 }

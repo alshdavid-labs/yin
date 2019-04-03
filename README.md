@@ -9,8 +9,8 @@
 go get -u github.com/qkgo/yin
 ```
 
-This library is compatible with the standard HTTP server in Go, 
-or any routers that respect it's patterns. 
+This library is compatible with the standard HTTP server in Go,
+or any routers that respect it's patterns.
 In my examples I am using the Chi router.
 
 Get it here: https://github.com/go-chi/chi
@@ -31,11 +31,9 @@ func main() {
     r.Use(yin.SimpleLogger)
 
     r.Get("/hello", func(w http.ResponseWriter, r *http.Request) {
-        yin.
-            Res(w).
-            JSON(yin.H{
-                "message": "world"
-            })
+        yin.Res(w, r).JSON(yin.H{
+            "message": "world"
+        })
     })
 
     http.ListenAndServe(":3000", r)
@@ -61,16 +59,13 @@ r.Use(yin.Logger(os.Stdout, &yin.LoggerConfig{}))
 Getting body from POST request from map
 ```Go
 r.Post("/incoming-map", func(w http.ResponseWriter, r *http.Request) {
+    res, req := yin.Event(w, r)
     body := map[string]interface{}
-    yin.
-        Req(r).
-        Body(&body)
-    
+    req.BindBody(&body)
+
     fmt.Println(body)
 
-    yin.
-        Res(w).
-        SendStatus(http.StatusNoContent)
+    res.SendStatus(http.StatusNoContent)
 })
 ```
 
@@ -81,16 +76,13 @@ type request struct {
 }
 
 r.Post("/incoming-struct", func(w http.ResponseWriter, r *http.Request) {
+    res, req := yin.Event(w, r)
     body := request{}
-    yin.
-        Req(r).
-        Body(&body)
+    req.Body(&body)
 
     fmt.Println(body)
 
-    yin.
-        Res(w).
-        SendStatus(http.StatusNoContent)
+    res.SendStatus(http.StatusNoContent)
 })
 ```
 
@@ -99,8 +91,7 @@ r.Post("/incoming-struct", func(w http.ResponseWriter, r *http.Request) {
 Setting response headers
 
 ```Go
-yin.
-    Res(w).
+yin.Res(w, r).
     SetHeader("Key", "Value").
     SendStatus(http.StatusNoContent)
 ```
@@ -108,8 +99,7 @@ yin.
 There is a convenience struct with common header names
 
 ```Go
-yin.
-    Res(w).
+yin.Res(w, r).
     SetHeader(yin.Headers.Origin, "*").
     SendStatus(http.StatusNoContent)
 ```
@@ -153,9 +143,9 @@ r.Get("/base*", yin.ServeClient(yin.ClientConfig{
 
 ## Testing Route Handlers
 
-The following is a `POST` request that takes a payload which 
+The following is a `POST` request that takes a payload which
 has two properties `a` and `b`. The route handler takes the properties,
-adds them, then responds with the addition of the two. 
+adds them, then responds with the addition of the two.
 
 ```Go
 // add-numbers_post.go
@@ -166,15 +156,16 @@ type AddNumbersRequest struct {
 }
 
 func AddNumbersHandler(w http.ResponseWriter, r *http.Request) {
+    res, req := yin.Event(w, r)
+
     body := AddNumbersRequest{}
-    yin.Req(r).Body(&body)
+    req.Body(&body)
 
     result := body.A + body.B
 
-    yin.Res(w).
-        JSON(yin.H{
-            "result": result,
-        })
+    res.JSON(yin.H{
+        "result": result,
+    })
 }
 ```
 
@@ -182,16 +173,15 @@ You would use the following test to check it performs as expected
 
 ```Go
 // add-numbers_post_test.go
+import "github.com/qkgo/mock_http"
 
-func TestHandle(t *testing.T) {
+func TestAddNumbersHandler(t *testing.T) {
     // Create the mock HTTP event
-    w := &yin.MockHTTPWriter{}
-    r := &http.Request{
-        Header: http.Header{},
-    }
+    w := mock_http.NewResponseWriter()
+    r := mock_http.NewRequest()
 
     // Add mock data to it
-    r.Body = yin.MockHTTPBody(yin.H{
+    r.Body = mock_http.ResponseBody(yin.H{
         "a": 1,
         "b": 1,
     })
@@ -199,9 +189,11 @@ func TestHandle(t *testing.T) {
     // Run handler with mocks
     AddNumbersHandler(w, r)
 
-    // Assert against result
-    result := w.GetBodyJSON()["result"]
-    if result == nil && result != 2 {
+    // Get results
+    result := w.GetBodyJSON()
+
+    // Assert against results
+    if result["result"] == nil && result != 2 {
         t.Errorf("Didn't get the right response")
     }
 }
